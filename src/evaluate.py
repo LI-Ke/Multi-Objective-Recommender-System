@@ -87,8 +87,8 @@ def recall_by_event_type(evaluated_events: dict, total_number_events: dict):
 
     return {
         'clicks': clicks / total_number_events['clicks'],
-        'carts': carts / total_number_events['carts'] if total_number_events['carts'] is not 0 else 0,
-        'orders': orders / total_number_events['orders'] if total_number_events['orders'] is not 0 else 0
+        'carts': carts / total_number_events['carts'] if total_number_events['carts'] != 0 else 0,
+        'orders': orders / total_number_events['orders'] if total_number_events['orders'] != 0 else 0
     }
 
 
