@@ -3,6 +3,7 @@ import json
 import random
 from copy import deepcopy
 from pathlib import Path
+import datetime
 
 import pandas as pd
 from pandas.io.json._json import JsonReader
@@ -86,15 +87,40 @@ def train_test_split(session_chunks: JsonReader, train_path: Path, test_path: Pa
         for _, session in chunk.iterrows():
             session = session.to_dict()
             if session['events'][0]['ts'] > split_ts:
+                for event in session['events']:
+                    dailyTime, dayOfWeek, isWeekend = extract_time_feature(event['ts'])
+                    event['dailyTime'] = dailyTime
+                    event['dayOfWeek'] = dayOfWeek
+                    event['isWeekend'] = isWeekend
                 test_file.write(json.dumps(session) + "\n")
             else:
                 session = trim_session(session, split_ts)
                 if len(session['events']) >= 2:
+                    for event in session['events']:
+                        dailyTime, dayOfWeek, isWeekend = extract_time_feature(event['ts'])
+                        event['dailyTime'] = dailyTime
+                        event['dayOfWeek'] = dayOfWeek
+                        event['isWeekend'] = isWeekend
                     train_items.update([event['aid'] for event in session['events']])
                     train_file.write(json.dumps(session) + "\n")
     train_file.close()
     test_file.close()
     filter_unknown_items(test_path, train_items)
+
+
+def extract_time_feature(timestamp):
+    d1 = datetime.datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
+    d2 = datetime.datetime.strptime(d1, '%Y-%m-%d %H:%M:%S')
+    if d2.hour >= 0 and d2.hour < 6:
+        dailyTime = 0
+    elif d2.hour >= 6 and d2.hour < 12:
+        dailyTime = 1
+    elif d2.hour >= 12 and d2.hour < 18:
+        dailyTime = 2
+    else:
+        dailyTime = 3
+    isWeekend = 1 if d2.weekday() >= 5 and d2.weekday() <= 6 else 0
+    return dailyTime, d2.weekday(), isWeekend
 
 
 def main(train_set: Path, output_path: Path, days: int, seed: int):
@@ -114,8 +140,8 @@ def main(train_set: Path, output_path: Path, days: int, seed: int):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train-set', type=Path, default='../test/resources/train.jsonl')
-    parser.add_argument('--output-path', type=Path, default='../test/resources/output_split/')
+    parser.add_argument('--train-set', type=Path, default='../data/train.jsonl')
+    parser.add_argument('--output-path', type=Path, default='../data/output_split/')
     parser.add_argument('--days', type=int, default=7)
     parser.add_argument('--seed', type=int, default=42)
     args = parser.parse_args()
